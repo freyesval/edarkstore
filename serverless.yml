@@ -1,0 +1,98 @@
+org: duilcete
+app: test
+service: edarkstore
+
+frameworkVersion: '2'
+
+
+provider:
+  name: aws
+  runtime: python3.8
+  lambdaHashingVersion: 20201221
+  stage: dev
+
+functions:
+  hello:
+    handler: handler.hello
+    events:
+      - http:
+          path: /hello
+          method: get
+  s3local:
+    handler: handler.s3local
+    events:
+      - http:
+          path: /s3local
+          method: get
+      - s3:
+          bucket: test
+          event: s3:ObjectCreated:*
+      # - http: 
+      #     path: /s3
+      #     method: get
+
+  dollarValue:
+    handler: handler.dollarValue
+    events:
+      - http:
+          path: /dollarValue
+          method: get
+      - schedule: 
+        name: get-dollar-value
+        description: obtains the daily value of the dollar and stores it
+        rate: rate(24 hours)
+        
+        
+
+custom:
+  dynamodb:
+  # If you only want to use DynamoDB Local in some stages, declare them here
+    stages:
+      - dev
+    start:
+      port: 8000
+      inMemory: true
+      heapInitial: 200m
+      heapMax: 1g
+      migrate: true
+      seed: true
+      convertEmptyValues: true
+  s3:
+    stages:
+      - dev
+    host: localhost
+    directory: ./buckets
+  pythonRequirements:
+    dockerizePip: false
+
+
+resources:
+  Resources:
+    NewResource:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: local-bucket
+    testTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: dollar-value
+        AttributeDefinitions:
+          - AttributeName: fecha
+            AttributeType: S
+          - AttributeName: valor
+            AttributeType: S
+        KeySchema:
+          - AttributeName: fecha
+            KeyType: HASH
+          - AttributeName: valor
+            KeyType: S
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
+  - serverless-s3-local
+  - serverless-python-requirements
